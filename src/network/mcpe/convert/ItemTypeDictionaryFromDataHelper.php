@@ -42,12 +42,13 @@ use function is_string;
 use function json_decode;
 use function str_replace;
 
-final class ItemTypeDictionaryFromDataHelper{
+final class ItemTypeDictionaryFromDataHelper
+{
 
 	private const PATHS = [
 		ProtocolInfo::PROTOCOL_1_26_20 => "-1.26.20",
 		ProtocolInfo::PROTOCOL_1_26_10 => "-1.26.10",
-		ProtocolInfo::PROTOCOL_1_26_0 => "-1.26.10",
+		ProtocolInfo::PROTOCOL_1_26_0 => "",
 		ProtocolInfo::PROTOCOL_1_21_130 => "-1.21.130",
 		ProtocolInfo::PROTOCOL_1_21_124 => "-1.21.120",
 		ProtocolInfo::PROTOCOL_1_21_120 => "-1.21.120",
@@ -73,13 +74,15 @@ final class ItemTypeDictionaryFromDataHelper{
 		ProtocolInfo::PROTOCOL_1_20_0 => "-1.20.0",
 	];
 
-	public static function loadFromProtocolId(int $protocolId) : ItemTypeDictionary{
+	public static function loadFromProtocolId(int $protocolId): ItemTypeDictionary
+	{
 		return self::loadFromString(Filesystem::fileGetContents(str_replace(".json", self::PATHS[$protocolId] . ".json", BedrockDataFiles::REQUIRED_ITEM_LIST_JSON)));
 	}
 
-	public static function loadFromString(string $data) : ItemTypeDictionary{
+	public static function loadFromString(string $data): ItemTypeDictionary
+	{
 		$table = json_decode($data, true);
-		if(!is_array($table)){
+		if (!is_array($table)) {
 			throw new AssumptionFailedError("Invalid item list format");
 		}
 
@@ -87,8 +90,8 @@ final class ItemTypeDictionaryFromDataHelper{
 		$nbtSerializer = new LittleEndianNbtSerializer();
 
 		$params = [];
-		foreach(Utils::promoteKeys($table) as $name => $entry){
-			if(!is_array($entry) || !is_string($name) || !isset($entry["component_based"], $entry["runtime_id"]) || !is_bool($entry["component_based"]) || !is_int($entry["runtime_id"]) || !is_int($entry["version"] ?? 0) || !(is_string($componentNbt = $entry["component_nbt"] ?? null) || $componentNbt === null)){
+		foreach (Utils::promoteKeys($table) as $name => $entry) {
+			if (!is_array($entry) || !is_string($name) || !isset($entry["component_based"], $entry["runtime_id"]) || !is_bool($entry["component_based"]) || !is_int($entry["runtime_id"]) || !is_int($entry["version"] ?? 0) || !(is_string($componentNbt = $entry["component_nbt"] ?? null) || $componentNbt === null)) {
 				throw new AssumptionFailedError("Invalid item list format");
 			}
 			$params[] = new ItemTypeEntry($name, $entry["runtime_id"], $entry["component_based"], $entry["version"] ?? 2, $componentNbt === null ? $emptyNBT : new CacheableNbt($nbtSerializer->read(ErrorToExceptionHandler::trapAndRemoveFalse(fn() => base64_decode($componentNbt, true)))->mustGetCompoundTag()));

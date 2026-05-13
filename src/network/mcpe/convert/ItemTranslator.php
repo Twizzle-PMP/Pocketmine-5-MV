@@ -40,7 +40,8 @@ use pocketmine\world\format\io\GlobalItemDataHandlers;
 /**
  * This class handles translation between network item ID+metadata to PocketMine-MP internal ID+metadata and vice versa.
  */
-final class ItemTranslator{
+final class ItemTranslator
+{
 	public const NO_BLOCK_RUNTIME_ID = 0; //this is technically a valid block runtime ID, but is used to represent "no block" (derp mojang)
 
 	public function __construct(
@@ -50,16 +51,18 @@ final class ItemTranslator{
 		private ItemDeserializer $itemDeserializer,
 		private BlockItemIdMap $blockItemIdMap,
 		private ItemIdMetaDowngrader $itemDataDowngrader,
-	){}
+	) {
+	}
 
 	/**
 	 * @return int[]|null
 	 * @phpstan-return array{int, int, ?int}|null
 	 */
-	public function toNetworkIdQuiet(Item $item) : ?array{
-		try{
+	public function toNetworkIdQuiet(Item $item): ?array
+	{
+		try {
 			return $this->toNetworkId($item);
-		}catch(ItemTypeSerializeException){
+		} catch (ItemTypeSerializeException) {
 			return null;
 		}
 	}
@@ -70,7 +73,8 @@ final class ItemTranslator{
 	 *
 	 * @throws ItemTypeSerializeException
 	 */
-	public function toNetworkId(Item $item) : array{
+	public function toNetworkId(Item $item): array
+	{
 		//TODO: we should probably come up with a cache for this
 
 		$itemData = $this->itemSerializer->serializeType($item, $this->itemDataDowngrader);
@@ -83,12 +87,12 @@ final class ItemTranslator{
 
 		$blockStateData = $itemData->getBlock();
 
-		if($blockStateData !== null){
+		if ($blockStateData !== null) {
 			$blockRuntimeId = $this->blockStateDictionary->lookupStateIdFromData($blockStateData);
-			if($blockRuntimeId === null){
+			if ($blockRuntimeId === null) {
 				throw new AssumptionFailedError("Unmapped blockstate returned by blockstate serializer: " . $blockStateData->toNbt());
 			}
-		}else{
+		} else {
 			$blockRuntimeId = null;
 		}
 
@@ -98,7 +102,8 @@ final class ItemTranslator{
 	/**
 	 * @throws ItemTypeSerializeException
 	 */
-	public function toNetworkNbt(Item $item) : CompoundTag{
+	public function toNetworkNbt(Item $item): CompoundTag
+	{
 		//TODO: this relies on the assumption that network item NBT is the same as disk item NBT, which may not always
 		//be true - if we stick on an older world version while updating network version, this could be a problem (and
 		//may be a problem for multi version implementations)
@@ -108,35 +113,37 @@ final class ItemTranslator{
 	/**
 	 * @throws TypeConversionException
 	 */
-	public function fromNetworkId(int $networkId, int $networkMeta, int $networkBlockRuntimeId) : Item{
-		try{
+	public function fromNetworkId(int $networkId, int $networkMeta, int $networkBlockRuntimeId): Item
+	{
+		try {
 			$stringId = $this->itemTypeDictionary->fromIntId($networkId);
-		}catch(\InvalidArgumentException $e){
+		} catch (\InvalidArgumentException $e) {
 			//TODO: a quiet version of fromIntId() would be better than catching InvalidArgumentException
 			throw TypeConversionException::wrap($e, "Invalid network itemstack ID $networkId");
 		}
 
 		$blockStateData = null;
-		if($this->blockItemIdMap->lookupBlockId($stringId) !== null){
+		if ($this->blockItemIdMap->lookupBlockId($stringId) !== null) {
 			$blockStateData = $this->blockStateDictionary->generateCurrentDataFromStateId($networkBlockRuntimeId);
-			if($blockStateData === null){
+			if ($blockStateData === null) {
 				throw new TypeConversionException("Blockstate runtimeID $networkBlockRuntimeId does not correspond to any known blockstate");
 			}
-		}elseif($networkBlockRuntimeId !== self::NO_BLOCK_RUNTIME_ID){
+		} elseif ($networkBlockRuntimeId !== self::NO_BLOCK_RUNTIME_ID) {
 			throw new TypeConversionException("Item $stringId is not a blockitem, but runtime ID $networkBlockRuntimeId was provided");
 		}
 
 		[$stringId, $networkMeta] = GlobalItemDataHandlers::getUpgrader()->getIdMetaUpgrader()->upgrade($stringId, $networkMeta);
 
-		try{
+		try {
 			return $this->itemDeserializer->deserializeType(new SavedItemData($stringId, $networkMeta, $blockStateData));
-		}catch(ItemTypeDeserializeException $e){
+		} catch (ItemTypeDeserializeException $e) {
 			throw TypeConversionException::wrap($e, "Invalid network itemstack data");
 		}
 	}
 
-	public static function getItemSchemaId(int $protocolId) : int{
-		return match($protocolId){
+	public static function getItemSchemaId(int $protocolId): int
+	{
+		return match ($protocolId) {
 			ProtocolInfo::PROTOCOL_1_26_20 => 261,
 			ProtocolInfo::PROTOCOL_1_26_10,
 			ProtocolInfo::PROTOCOL_1_26_0,

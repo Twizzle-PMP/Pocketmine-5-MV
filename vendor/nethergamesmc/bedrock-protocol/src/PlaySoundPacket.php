@@ -20,7 +20,8 @@ use pmmp\encoding\LE;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 
-class PlaySoundPacket extends DataPacket implements ClientboundPacket{
+class PlaySoundPacket extends DataPacket implements ClientboundPacket
+{
 	public const NETWORK_ID = ProtocolInfo::PLAY_SOUND_PACKET;
 
 	public string $soundName;
@@ -42,7 +43,7 @@ class PlaySoundPacket extends DataPacket implements ClientboundPacket{
 		float $volume,
 		float $pitch,
 		?int $serverSoundHandle = null,
-	) : self{
+	): self {
 		$result = new self;
 		$result->soundName = $soundName;
 		$result->x = $x;
@@ -54,7 +55,8 @@ class PlaySoundPacket extends DataPacket implements ClientboundPacket{
 		return $result;
 	}
 
-	protected function decodePayload(ByteBufferReader $in, int $protocolId) : void{
+	protected function decodePayload(ByteBufferReader $in, int $protocolId): void
+	{
 		$this->soundName = CommonTypes::getString($in);
 		$blockPosition = CommonTypes::getBlockPosition($in, $protocolId >= ProtocolInfo::PROTOCOL_1_26_10);
 		$this->x = $blockPosition->getX() / 8;
@@ -62,22 +64,36 @@ class PlaySoundPacket extends DataPacket implements ClientboundPacket{
 		$this->z = $blockPosition->getZ() / 8;
 		$this->volume = LE::readFloat($in);
 		$this->pitch = LE::readFloat($in);
+
 		if($protocolId >= ProtocolInfo::PROTOCOL_1_26_20){
 			$this->serverSoundHandle = CommonTypes::readOptional($in, LE::readUnsignedLong(...));
 		}
 	}
 
-	protected function encodePayload(ByteBufferWriter $out, int $protocolId) : void{
+	protected function encodePayload(ByteBufferWriter $out, int $protocolId): void
+	{
 		CommonTypes::putString($out, $this->soundName);
-		CommonTypes::putBlockPosition($out, new BlockPosition((int) ($this->x * 8), (int) ($this->y * 8), (int) ($this->z * 8)), $protocolId >= ProtocolInfo::PROTOCOL_1_26_10);
+
+		CommonTypes::putBlockPosition(
+			$out,
+			new BlockPosition(
+				(int) ($this->x * 8),
+				(int) ($this->y * 8),
+				(int) ($this->z * 8)
+			),
+			$protocolId
+		);
+
 		LE::writeFloat($out, $this->volume);
 		LE::writeFloat($out, $this->pitch);
+
 		if($protocolId >= ProtocolInfo::PROTOCOL_1_26_20){
 			CommonTypes::writeOptional($out, $this->serverSoundHandle, LE::writeUnsignedLong(...));
 		}
 	}
 
-	public function handle(PacketHandlerInterface $handler) : bool{
+	public function handle(PacketHandlerInterface $handler): bool
+	{
 		return $handler->handlePlaySound($this);
 	}
 }
