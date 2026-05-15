@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\inventory;
 
+use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
@@ -24,7 +25,8 @@ use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\GetTypeIdFromConstTrait;
 
-class UseItemTransactionData extends TransactionData{
+class UseItemTransactionData extends TransactionData
+{
 	use GetTypeIdFromConstTrait;
 
 	public const ID = InventoryTransactionPacket::TYPE_USE_ITEM;
@@ -44,46 +46,67 @@ class UseItemTransactionData extends TransactionData{
 	private Vector3 $clickPosition;
 	private int $blockRuntimeId;
 	private PredictedResult $clientInteractPrediction;
+	private int $clientCooldownState;
 
-	public function getActionType() : int{
+	public function getActionType(): int
+	{
 		return $this->actionType;
 	}
 
-	public function getTriggerType() : TriggerType{ return $this->triggerType; }
+	public function getTriggerType(): TriggerType
+	{
+		return $this->triggerType;
+	}
 
-	public function getBlockPosition() : BlockPosition{
+	public function getBlockPosition(): BlockPosition
+	{
 		return $this->blockPosition;
 	}
 
-	public function getFace() : int{
+	public function getFace(): int
+	{
 		return $this->face;
 	}
 
-	public function getHotbarSlot() : int{
+	public function getHotbarSlot(): int
+	{
 		return $this->hotbarSlot;
 	}
 
-	public function getItemInHand() : ItemStackWrapper{
+	public function getItemInHand(): ItemStackWrapper
+	{
 		return $this->itemInHand;
 	}
 
-	public function getPlayerPosition() : Vector3{
+	public function getPlayerPosition(): Vector3
+	{
 		return $this->playerPosition;
 	}
 
-	public function getClickPosition() : Vector3{
+	public function getClickPosition(): Vector3
+	{
 		return $this->clickPosition;
 	}
 
-	public function getBlockRuntimeId() : int{
+	public function getBlockRuntimeId(): int
+	{
 		return $this->blockRuntimeId;
 	}
 
-	public function getClientInteractPrediction() : PredictedResult{ return $this->clientInteractPrediction; }
+	public function getClientInteractPrediction(): PredictedResult
+	{
+		return $this->clientInteractPrediction;
+	}
 
-	protected function decodeData(ByteBufferReader $in, int $protocolId) : void{
+	public function getClientCooldownState(): int
+	{
+		return $this->clientCooldownState;
+	}
+
+	protected function decodeData(ByteBufferReader $in, int $protocolId): void
+	{
 		$this->actionType = VarInt::readUnsignedInt($in);
-		if($protocolId >= ProtocolInfo::PROTOCOL_1_21_20){
+		if ($protocolId >= ProtocolInfo::PROTOCOL_1_21_20) {
 			$this->triggerType = TriggerType::fromPacket(VarInt::readUnsignedInt($in));
 		}
 		$this->blockPosition = CommonTypes::getBlockPosition($in, $protocolId);
@@ -93,14 +116,18 @@ class UseItemTransactionData extends TransactionData{
 		$this->playerPosition = CommonTypes::getVector3($in);
 		$this->clickPosition = CommonTypes::getVector3($in);
 		$this->blockRuntimeId = VarInt::readUnsignedInt($in);
-		if($protocolId >= ProtocolInfo::PROTOCOL_1_21_20){
+		if ($protocolId >= ProtocolInfo::PROTOCOL_1_21_20) {
 			$this->clientInteractPrediction = PredictedResult::fromPacket(VarInt::readUnsignedInt($in));
+			if ($protocolId >= ProtocolInfo::PROTOCOL_1_26_10) {
+				$this->clientCooldownState = Byte::readUnsigned($in);
+			}
 		}
 	}
 
-	protected function encodeData(ByteBufferWriter $out, int $protocolId) : void{
+	protected function encodeData(ByteBufferWriter $out, int $protocolId): void
+	{
 		VarInt::writeUnsignedInt($out, $this->actionType);
-		if($protocolId >= ProtocolInfo::PROTOCOL_1_21_20){
+		if ($protocolId >= ProtocolInfo::PROTOCOL_1_21_20) {
 			VarInt::writeUnsignedInt($out, $this->triggerType->value);
 		}
 		CommonTypes::putBlockPosition($out, $this->blockPosition, $protocolId);
@@ -110,8 +137,11 @@ class UseItemTransactionData extends TransactionData{
 		CommonTypes::putVector3($out, $this->playerPosition);
 		CommonTypes::putVector3($out, $this->clickPosition);
 		VarInt::writeUnsignedInt($out, $this->blockRuntimeId);
-		if($protocolId >= ProtocolInfo::PROTOCOL_1_21_20){
+		if ($protocolId >= ProtocolInfo::PROTOCOL_1_21_20) {
 			VarInt::writeUnsignedInt($out, $this->clientInteractPrediction->value);
+			if ($protocolId >= ProtocolInfo::PROTOCOL_1_26_10) {
+				Byte::writeUnsigned($out, $this->clientCooldownState);
+			}
 		}
 	}
 
@@ -129,7 +159,8 @@ class UseItemTransactionData extends TransactionData{
 		Vector3 $clickPosition,
 		int $blockRuntimeId,
 		PredictedResult $clientInteractPrediction,
-	) : self{
+		int $clientCooldownState,
+	): self {
 		$result = new self;
 		$result->actionType = $actionType;
 		$result->triggerType = $triggerType;
@@ -141,14 +172,16 @@ class UseItemTransactionData extends TransactionData{
 		$result->clickPosition = $clickPosition;
 		$result->blockRuntimeId = $blockRuntimeId;
 		$result->clientInteractPrediction = $clientInteractPrediction;
+		$result->clientCooldownState = $clientCooldownState;
 		return $result;
 	}
 
 	/**
 	 * @param NetworkInventoryAction[] $actions
 	 */
-	public static function new(array $actions, int $actionType, TriggerType $triggerType, BlockPosition $blockPosition, int $face, int $hotbarSlot, ItemStackWrapper $itemInHand, Vector3 $playerPosition, Vector3 $clickPosition, int $blockRuntimeId, PredictedResult $clientInteractPrediction) : self{
-		$result = self::initSelf($actionType, $triggerType, $blockPosition, $face, $hotbarSlot, $itemInHand, $playerPosition, $clickPosition, $blockRuntimeId, $clientInteractPrediction);
+	public static function new(array $actions, int $actionType, TriggerType $triggerType, BlockPosition $blockPosition, int $face, int $hotbarSlot, ItemStackWrapper $itemInHand, Vector3 $playerPosition, Vector3 $clickPosition, int $blockRuntimeId, PredictedResult $clientInteractPrediction, int $clientCooldownState): self
+	{
+		$result = self::initSelf($actionType, $triggerType, $blockPosition, $face, $hotbarSlot, $itemInHand, $playerPosition, $clickPosition, $blockRuntimeId, $clientInteractPrediction, $clientCooldownState);
 		$result->actions = $actions;
 		return $result;
 	}
